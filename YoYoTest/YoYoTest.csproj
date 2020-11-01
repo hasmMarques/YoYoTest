@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RestorePackagesPath>..\packages</RestorePackagesPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="Repository\fitnessrating_beeptest.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Repository\fitnessrating_beeptest.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MatBlazor" Version="2.7.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.BrowserLink" Version="2.2.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+  </ItemGroup>
+
+  
+  <!--<Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+    <HintPath>..\packages\Newtonsoft.Json.12.0.2\lib\net40\Newtonsoft.Json.dll</HintPath>
+  </Reference>-->
+
+  <!--<PackageReference Include="MatBlazor" Version="2.7.0">
+    <HintPath>..\packages\matblazor\2.7.0\lib\netstandard2.1\MatBlazor.dll</HintPath>
+  </PackageReference>>-->
+
+</Project>

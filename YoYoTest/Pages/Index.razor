@@ -1,0 +1,269 @@
+﻿@page "/"
+@page "/Index"
+@using YoYoTest.Services
+@using YoYoTest.Dtos
+@inject ShuttleService ShuttleService
+@inject ParticipantService ParticipantService
+
+<h1>YoYo Test</h1>
+@if (!bntStartDisabled)
+{
+    <table>
+        <thead>
+        <td style="text-align: center; width: 65px"/>
+        <td style="text-align: center; width: 150px">
+            <MatButton
+                disabled="@bntStartDisabled"
+                Raised="true"
+                style="-ms-border-radius: 75px; border-radius: 75px; height: 150px; width: 150px;"
+                class="btn btn-primary"
+                @onclick="StartShuttle">
+                Start
+            </MatButton>
+        </td>
+        <td style="text-align: center; width: 65px"/>
+        </thead>
+        <thead>
+        <td style="text-align: center; width: 65px"></td>
+        <td style="text-align: center; width: 150px"></td>
+        <td style="text-align: center; width: 65px"></td>
+        </thead >
+    </table>
+}
+else
+{
+    <table>
+        <thead>
+        <td style="text-align: center; width: 65px"/>
+        <td style="text-align: center; width: 150px">
+            <MatButton
+                Raised="true"
+                style="-ms-border-radius: 75px; border-radius: 75px; height: 150px; width: 150px;"
+                class="btn btn-primary">
+                <table>
+                    <tr>
+                        <td>Level @levelNr</td>
+                    </tr>
+                    <tr>
+                        <td>Shuttle @shuttleNr</td>
+                    </tr>
+                    <tr>
+                        <td>@klm km/h</td>
+                    </tr>
+                </table>
+            </MatButton>
+        </td>
+        <td style="text-align: center; width: 65px"/>
+        </thead >
+    </table>
+}
+
+<table>
+    <thead>
+    <td style="text-align: center; width: 100px">NEXT SHUTTLE</td>
+    <td style="border-left-style: solid; text-align: center; width: 80px;">TOTAL TIME</td>
+    <td style="border-left-style: solid; text-align: center; width: 100px;">TOTAL DISTANCE</td>
+    </thead >
+    <tr>
+        <td style="text-align: center; width: 100px">@timeLeft.Minutes:@timeLeft.Seconds.ToString("00") s</td>
+        <td style="border-left-style: solid; text-align: center; width: 80px;">@totalTime.Hours:@totalTime.Minutes.ToString("00") m</td>
+        <td style="border-left-style: solid; text-align: center; width: 100px;">@totalKlm.ToString("0000") m</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; width: 280px;" colspan=3>
+            <MatProgressBar Progress="@totalProgress"/>
+        </td>
+    </tr>
+</table>
+<hr>
+<td style="text-align: left;">Track</td>
+<hr style="border: 0; border-top: 2px dashed white; width: 150px;"/>
+@if (Participants?.Count > 0)
+{
+    @foreach (var item in Participants)
+    {
+        <tr>
+            <td style="text-align: center; width: 20px">@item.Id.</td>
+            <td style="text-align: center; width: 100px;">@item.Name</td>
+            <td style="text-align: center; width: 100px;">
+                @if (!item.Disqualified && !item.Finished && bntStartDisabled)
+                {
+                    <MatButton
+                        disabled="@item.Warned"
+                        Raised="true"
+                        Style="background-color: blue; height: 25px"
+                        class="btn btn-primary"
+                        @onclick="@(e => WarnParticipant(item.Id))">
+                        <td>
+                            @if (item.Warned)
+                            {
+                                <td>Warned</td>
+                            }
+                            else
+                            {
+                                <td>Warn</td>
+                            }
+                        </td>
+                    </MatButton>
+                }
+            </td>
+            <td style="text-align: center; width: 100px">
+                @if (!item.Disqualified && !item.Finished && bntStartDisabled)
+                {
+                    <MatButton
+                        disabled="@item.Disqualified"
+                        Raised="true"
+                        Style="background-color: red; height: 25px; margin: 5px"
+                        class="btn btn-primary"
+                        @onclick="@(e => DisqualifyParticipant(item.Id))">
+                        <td>Stop</td>
+                    </MatButton>
+                }
+                else
+                {
+                    @if (item.Disqualified || item.Finished)
+                    {
+                        @if (item.AccomplishedShuttles != null && item.AccomplishedShuttles.Any())
+                        {
+                            <select class="form-control d-flex" onchange="(dostuff())" se>
+                                @foreach (var template in item.AccomplishedShuttles.OrderByDescending(x => x.AccumulatedShuttleDistance))
+                                {
+                                    <option value=@template.ShuttleNo>@template.SpeedLevel - @template.ShuttleNo</option>
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <td style="text-align: center; width: 100px">0 - 0</td>
+                        }
+                    }
+                }
+
+            </td>
+        </tr>
+    }
+}
+
+@code {
+    private bool bntStartDisabled;
+    private TimeSpan timeLeft = new TimeSpan(0, 0, 0);
+    private TimeSpan totalTime = new TimeSpan(0, 0, 0);
+    private double totalProgress;
+    private double valueUsedToIncrement;
+    private List<Shuttle> Shuttles;
+    private long shuttleNr;
+    private long levelNr;
+    private string klm = "0";
+    private double totalKlm;
+    private List<Participant> Participants = new List<Participant>();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        Shuttles = new List<Shuttle>(await ShuttleService.GetShuttlesAsync());
+        Participants = new List<Participant>(await ParticipantService.GetParticipantsAsync());
+
+        StateHasChanged();
+    }
+
+    private void StartShuttle()
+    {
+        ResetData();
+
+        LoadData();
+        Timer();
+    }
+
+    private void ResetData()
+    {
+        foreach (var par in Participants)
+        {
+            par.Warned = par.Finished = par.Disqualified = false;
+            par.AccomplishedShuttle = new Shuttle();
+            StateHasChanged();
+        }
+
+        bntStartDisabled = true;
+        StateHasChanged();
+    }
+
+    private async Task Timer()
+    {
+        foreach (var shuttle in Shuttles)
+        {
+            totalProgress = 0;
+            shuttleNr = shuttle.ShuttleNo;
+            levelNr = shuttle.SpeedLevel;
+            klm = shuttle.Speed;
+
+            var dt = DateTime.Parse(shuttle.CommulativeTime);
+            timeLeft = new TimeSpan(dt.Hour, dt.Minute, dt.Second);
+            valueUsedToIncrement = 1 / timeLeft.TotalSeconds;
+            double seconds = timeLeft.Minutes * 60;
+            double valueUsedToIncrementKlm = shuttle.AccumulatedShuttleDistance / seconds;
+
+            while (timeLeft > new TimeSpan())
+            {
+                await Task.Delay(1000);
+                totalTime = totalTime.Add(new TimeSpan(0, 0, 1));
+                timeLeft = timeLeft.Subtract(new TimeSpan(0, 0, 1));
+
+                totalProgress += valueUsedToIncrement;
+
+                totalKlm += valueUsedToIncrementKlm;
+
+                StateHasChanged();
+            }
+
+            ShuttleAccomplished(shuttle);
+
+            
+
+            StateHasChanged();
+        }
+
+        FinishYoYo();
+
+        await AfterTime();
+        StateHasChanged();
+    }
+
+    private Task AfterTime()
+    {
+        bntStartDisabled = false;
+        return Task.CompletedTask;
+    }
+
+    private void WarnParticipant(int participantId)
+    {
+        Participants.FirstOrDefault(x => x.Id.Equals(participantId)).Warned = true;
+        StateHasChanged();
+    }
+
+    private void DisqualifyParticipant(int participantId)
+    {
+        Participants.FirstOrDefault(x => x.Id.Equals(participantId)).Disqualified = true;
+        StateHasChanged();
+    }
+
+    private void ShuttleAccomplished(Shuttle shuttle)
+    {
+        foreach (var participant in Participants.Where(x => !x.Disqualified))
+        {
+            participant.AccomplishedShuttle = shuttle;
+            participant.AccomplishedShuttles.Add(shuttle);
+        }
+        StateHasChanged();
+    }
+
+    private void FinishYoYo()
+    {
+        foreach (var participant in Participants.Where(x => !x.Disqualified))
+            participant.Finished = true;
+        StateHasChanged();
+    }
+}
